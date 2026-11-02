@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Noto Sans JP', sans-serif;
+  background: #101522;
+  color: #f5f7ff;
+}
+
+.header {
+  background: #1b2436;
+  padding: 20px 6%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #35415a;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.status {
+  color: #8ea5c9;
+  font-size: 13px;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 40px 20px;
+}
+
+.welcome {
+  background: linear-gradient(135deg, #243c70, #442b70);
+  padding: 40px;
+  border-radius: 18px;
+  margin-bottom: 25px;
+}
+
+.welcome h1 {
+  font-size: 38px;
+  margin: 10px 0;
+}
+
+.sub {
+  color: #a9c4ff;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.navigation {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+button {
+  background: #29364f;
+  color: white;
+  border: 1px solid #435575;
+  padding: 12px 20px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover,
+.nav-btn.active {
+  background: #557df5;
+}
+
+.panel,
+.card {
+  background: #1b2436;
+  border: 1px solid #35415a;
+  padding: 24px;
+  border-radius: 14px;
+  margin-bottom: 18px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.card strong {
+  font-size: 35px;
+  color: #83a5ff;
+}
+
+input {
+  display: block;
+  width: 100%;
+  max-width: 500px;
+  padding: 13px;
+  margin: 10px 0 20px;
+  background: #101522;
+  color: white;
+  border: 1px solid #52627e;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+input:focus {
+  outline: 2px solid #557df5;
+}
+
+#tournament-form button {
+  background: #557df5;
+  border: none;
+}
+
+.delete-btn {
+  background: #a63f52;
+  border: none;
+}
+
+footer {
+  text-align: center;
+  padding: 30px;
+  color: #8492aa;
+  border-top: 1px solid #35415a;
+}
+
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .welcome {
+    padding: 25px;
+  }
+
+  .welcome h1 {
+    font-size: 30px;
+  }
+}
