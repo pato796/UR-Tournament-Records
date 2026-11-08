@@ -341,15 +341,16 @@ localStorage.setItem(
         <p>1キルあたりのポイント</p>
         <input type="number" id="kill-rate"
          min="0" value="${settings.killRate}">
-         <p>チーム全体のキルポイント上限</p>
+      <p>チーム全体のキルポイント上限</p>
 <input type="number" id="kill-max-points"
+  min="0" value="${settings.killMaxPoints ?? 10}">
+
 <label>
   <input type="checkbox" id="kill-unlimited"
     ${settings.killUnlimited ? 'checked' : ''}>
   キルポイントの上限なし
 </label>
-  min="0" value="${settings.killMaxPoints ?? 10}">
-      </div>
+</div>
 
       <div class="panel">
         <h3>💥 ダメージポイント</h3>
@@ -365,22 +366,24 @@ localStorage.setItem(
         <input type="number" id="damage-rate"
           min="0" value="${settings.damageRate}">
          <p>チーム全体のダメージポイント上限</p>
+<p>チーム全体のダメージポイント上限</p>
 <input type="number" id="damage-max-points"
+  min="0" value="${settings.damageMaxPoints ?? 15}">
+
 <label>
   <input type="checkbox" id="damage-unlimited"
     ${settings.damageUnlimited ? 'checked' : ''}>
   ダメージポイントの上限なし
 </label>
-  min="0" value="${settings.damageMaxPoints ?? 15}"> 
-      </div>
+</div>
 
-      <div class="panel">
-        <h3>🏆 順位ポイント</h3>
-        <label>
-          <input type="checkbox" id="placement-enabled"
-            ${settings.placementEnabled ? 'checked' : ''}>
-          順位を使用する
-        </label>
+<div class="panel">
+  <h3>🏆 順位ポイント</h3>
+  <label>
+    <input type="checkbox" id="placement-enabled"
+      ${settings.placementEnabled ? 'checked' : ''}>
+    順位を使用する
+  </label>
 
         ${Array.from({ length: 8 }, (_, i) => {
           const rank = i + 1
