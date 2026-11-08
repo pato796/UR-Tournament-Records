@@ -352,29 +352,32 @@ localStorage.setItem(
 </label>
 </div>
 
-      <div class="panel">
-        <h3>💥 ダメージポイント</h3>
-        <label>
-          <input type="checkbox" id="damage-enabled"
-            ${settings.damageEnabled ? 'checked' : ''}>
-          ダメージを使用する
-        </label>
-        <p>何ダメージごとにポイントを付けるか</p>
-        <input type="number" id="damage-unit"
-          min="1" value="${settings.damageUnit}">
-        <p>そのときのポイント</p>
-        <input type="number" id="damage-rate"
-          min="0" value="${settings.damageRate}">
-         <p>チーム全体のダメージポイント上限</p>
-<p>チーム全体のダメージポイント上限</p>
-<input type="number" id="damage-max-points"
-  min="0" value="${settings.damageMaxPoints ?? 15}">
+<div class="panel">
+  <h3>💥 ダメージポイント</h3>
 
-<label>
-  <input type="checkbox" id="damage-unlimited"
-    ${settings.damageUnlimited ? 'checked' : ''}>
-  ダメージポイントの上限なし
-</label>
+  <label>
+    <input type="checkbox" id="damage-enabled"
+      ${settings.damageEnabled ? 'checked' : ''}>
+    ダメージを使用する
+  </label>
+
+  <p>何ダメージごとにポイントを付けるか</p>
+  <input type="number" id="damage-unit"
+    min="1" value="${settings.damageUnit}">
+
+  <p>そのときのポイント</p>
+  <input type="number" id="damage-rate"
+    min="0" value="${settings.damageRate}">
+
+  <p>チーム全体のダメージポイント上限</p>
+  <input type="number" id="damage-max-points"
+    min="0" value="${settings.damageMaxPoints ?? 15}">
+
+  <label>
+    <input type="checkbox" id="damage-unlimited"
+      ${settings.damageUnlimited ? 'checked' : ''}>
+    ダメージポイントの上限なし
+  </label>
 </div>
 
 <div class="panel">
@@ -595,12 +598,18 @@ function showEditScore(index) {
     t => t.name === score.tournament
   )
 
+  if (!tournament) return
+
   const settings = tournament.pointSettings || {
     killEnabled: true,
+    killUnlimited: false,
     killRate: 2,
+    killMaxPoints: 10,
     damageEnabled: true,
+    damageUnlimited: false,
     damageUnit: 100,
     damageRate: 1,
+    damageMaxPoints: 15,
     placementEnabled: true,
     placementPoints: {
       1: 20, 2: 15, 3: 12, 4: 10,
@@ -612,10 +621,20 @@ function showEditScore(index) {
     <h2>✏️ 登録内容を編集</h2>
 
     <form id="edit-score-form">
+
       <label>チーム名</label>
       <input
         id="edit-team"
         value="${escapeHTML(score.team)}"
+        required
+      >
+
+      <label>試合番号</label>
+      <input
+        id="edit-match-no"
+        type="number"
+        min="1"
+        value="${score.matchNo ?? 1}"
         required
       >
 
@@ -627,6 +646,15 @@ function showEditScore(index) {
           min="0"
           value="${score.kills ?? 0}"
         >
+
+        <label>
+          <input
+            type="checkbox"
+            id="edit-kill-unlimited"
+            ${score.matchKillUnlimited || settings.killUnlimited ? 'checked' : ''}
+          >
+          この試合はキルポイントの上限なし
+        </label>
       ` : ''}
 
       ${settings.damageEnabled ? `
@@ -637,6 +665,15 @@ function showEditScore(index) {
           min="0"
           value="${score.damage ?? 0}"
         >
+
+        <label>
+          <input
+            type="checkbox"
+            id="edit-damage-unlimited"
+            ${score.matchDamageUnlimited || settings.damageUnlimited ? 'checked' : ''}
+          >
+          この試合はダメージポイントの上限なし
+        </label>
       ` : ''}
 
       ${settings.placementEnabled ? `
@@ -658,68 +695,82 @@ function showEditScore(index) {
     </form>
   `
 
-  document.querySelector('#cancel-edit').addEventListener('click', () => {
-    showRanking()
-  })
-    document.querySelector('#edit-score-form').addEventListener('submit', event => {
-    event.preventDefault()
+  document.querySelector('#cancel-edit')
+    .addEventListener('click', () => {
+      showRanking()
+    })
 
-    const hasDetailedStats =
-      score.kills !== undefined ||
-      score.damage !== undefined ||
-      score.placement !== undefined
+  document.querySelector('#edit-score-form')
+    .addEventListener('submit', event => {
+      event.preventDefault()
 
-    const kills = settings.killEnabled
-      ? Number(document.querySelector('#edit-kills').value || 0)
-      : (score.kills ?? 0)
+      const kills = settings.killEnabled
+        ? Number(document.querySelector('#edit-kills').value || 0)
+        : (score.kills ?? 0)
 
-    const damage = settings.damageEnabled
-      ? Number(document.querySelector('#edit-damage').value || 0)
-      : (score.damage ?? 0)
+      const damage = settings.damageEnabled
+        ? Number(document.querySelector('#edit-damage').value || 0)
+        : (score.damage ?? 0)
 
-    const placement = settings.placementEnabled
-      ? Number(document.querySelector('#edit-placement').value || 0)
-      : (score.placement ?? 0)
+      const placement = settings.placementEnabled
+        ? Number(document.querySelector('#edit-placement').value || 0)
+        : (score.placement ?? 0)
 
-    let points = score.points
+      const matchKillUnlimited =
+        settings.killUnlimited ||
+        document.querySelector('#edit-kill-unlimited')?.checked ||
+        false
 
-    if (hasDetailedStats) {
-      points = 0
+      const matchDamageUnlimited =
+        settings.damageUnlimited ||
+        document.querySelector('#edit-damage-unlimited')?.checked ||
+        false
 
-  if (settings.killEnabled) {
-  const killPoints = kills * Number(settings.killRate || 0)
+      let points = 0
 
-  points += settings.killUnlimited
-    ? killPoints
-    : Math.min(killPoints, Number(settings.killMaxPoints ?? 10))
-}
+      if (settings.killEnabled) {
+        const raw = kills * Number(settings.killRate || 0)
 
-if (settings.damageEnabled) {
-  const unit = Number(settings.damageUnit) || 1
-  const damagePoints = Math.floor(damage / unit) * Number(settings.damageRate || 0)
+        points += matchKillUnlimited
+          ? raw
+          : Math.min(raw, Number(settings.killMaxPoints ?? 10))
+      }
 
-  points += settings.damageUnlimited
-    ? damagePoints
-    : Math.min(damagePoints, Number(settings.damageMaxPoints ?? 15))
-}
+      if (settings.damageEnabled) {
+        const unit = Number(settings.damageUnit) || 1
+        const raw = Math.floor(damage / unit) *
+          Number(settings.damageRate || 0)
+
+        points += matchDamageUnlimited
+          ? raw
+          : Math.min(raw, Number(settings.damageMaxPoints ?? 15))
+      }
 
       if (settings.placementEnabled) {
-        points += Number(settings.placementPoints?.[placement] || 0)
+        points += Number(
+          settings.placementPoints?.[placement] || 0
+        )
       }
-    }
 
-    scores[index] = {
-      ...score,
-      team: document.querySelector('#edit-team').value,
-      kills,
-      damage,
-      placement,
-      points
-    }
+      scores[index] = {
+        ...score,
+        team: document.querySelector('#edit-team').value,
+        matchNo: Number(
+          document.querySelector('#edit-match-no').value || 1
+        ),
+        matchKillUnlimited,
+        matchDamageUnlimited,
+        kills,
+        damage,
+        placement,
+        points
+      }
 
-    localStorage.setItem('scores', JSON.stringify(scores))
-    showRanking()
-  })
+      localStorage.setItem('scores', JSON.stringify(scores))
+
+      alert('変更を保存しました！')
+      showRanking()
+    })
 }
 function showRegister() {
   if (tournaments.length === 0) {
@@ -748,10 +799,20 @@ function showRegister() {
         </select>
 
         
-      <h3>チーム名</h3>
+    <h3>チーム名</h3>
 <select id="register-team" required>
 </select>
-        <div id="stat-inputs"></div>
+
+<h3>試合番号</h3>
+<input
+  type="number"
+  id="register-match-no"
+  min="1"
+  value="1"
+  required
+>
+
+<div id="stat-inputs"></div>
 
         <div class="panel">
           <h3>🏆 チーム合計ポイント</h3>
@@ -819,6 +880,25 @@ const selectedTeam = tournament?.teams?.find(
 const members = selectedTeam?.members || []
 
     statInputs.innerHTML = `
+          <div class="panel">
+        <h3>⚙️ この試合だけの上限設定</h3>
+
+        ${settings.killEnabled ? `
+          <label>
+            <input type="checkbox" id="match-kill-unlimited">
+            この試合はキルポイントの上限なし
+          </label>
+        ` : ''}
+
+        ${settings.damageEnabled ? `
+          <label>
+            <input type="checkbox" id="match-damage-unlimited">
+            この試合はダメージポイントの上限なし
+          </label>
+        ` : ''}
+      </div>
+
+
       ${[1, 2, 3].map(i => `
         <div class="panel">
           <h3>👤 選手${i}</h3>
@@ -929,9 +1009,13 @@ function calculatePoints() {
   if (settings.killEnabled) {
     const raw = totalKills * Number(settings.killRate || 0)
 
-    teamKillPoints = settings.killUnlimited
-      ? raw
-      : Math.min(raw, Number(settings.killMaxPoints ?? 10))
+   const matchKillUnlimited =
+  settings.killUnlimited ||
+  document.querySelector('#match-kill-unlimited')?.checked
+
+teamKillPoints = matchKillUnlimited
+  ? raw
+  : Math.min(raw, Number(settings.killMaxPoints ?? 10))
   }
 
   if (settings.damageEnabled) {
@@ -939,9 +1023,13 @@ function calculatePoints() {
     const raw = Math.floor(totalDamage / unit) *
       Number(settings.damageRate || 0)
 
-    teamDamagePoints = settings.damageUnlimited
-      ? raw
-      : Math.min(raw, Number(settings.damageMaxPoints ?? 15))
+    const matchDamageUnlimited =
+  settings.damageUnlimited ||
+  document.querySelector('#match-damage-unlimited')?.checked
+
+teamDamagePoints = matchDamageUnlimited
+  ? raw
+  : Math.min(raw, Number(settings.damageMaxPoints ?? 15))
   }
 
   const placement = Number(
@@ -981,7 +1069,7 @@ renderInputs()
       )
 
       const result = calculatePoints()
-
+      const settings = getSettings()
       const totalKills = result.players.reduce(
         (sum, player) => sum + player.kills, 0
       )
@@ -990,15 +1078,31 @@ renderInputs()
         (sum, player) => sum + player.damage, 0
       )
 
-      scores.push({
-        tournament: tournament.name,
-        team: document.querySelector('#register-team').value,
-        points: result.teamPoints,
-        kills: totalKills,
-        damage: totalDamage,
-        placement: result.placement,
-        players: result.players
-      })
+scores.push({
+  tournament: tournament.name,
+  team: document.querySelector('#register-team').value,
+
+  matchNo: Number(
+    document.querySelector('#register-match-no').value || 1
+  ),
+
+  matchKillUnlimited:
+    settings.killUnlimited ||
+    document.querySelector('#match-kill-unlimited')?.checked ||
+    false,
+
+  matchDamageUnlimited:
+    settings.damageUnlimited ||
+    document.querySelector('#match-damage-unlimited')?.checked ||
+    false,
+
+  points: result.teamPoints,
+  kills: totalKills,
+  damage: totalDamage,
+  placement: result.placement,
+  players: result.players
+})
+   
 
       localStorage.setItem('scores', JSON.stringify(scores))
 
