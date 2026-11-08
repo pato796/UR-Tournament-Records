@@ -279,27 +279,46 @@ function addTeam() {
 }
 function showPointSettings(index) {
   const tournament = tournaments[index]
+if (!tournament.pointSettings) {
+  tournament.pointSettings = {}
+}
 
-  if (!tournament.pointSettings) {
-    tournament.pointSettings = {
-      killEnabled: true,
-      killRate: 2,
-      damageEnabled: true,
-      damageUnit: 100,
-      damageRate: 1,
-      placementEnabled: true,
-      placementPoints: {
-        1: 20,
-        2: 15,
-        3: 12,
-        4: 10,
-        5: 8,
-        6: 6,
-        7: 4,
-        8: 2
-      }
-    }
+const defaults = {
+  killEnabled: true,
+  killRate: 2,
+  killMaxPoints: 10,
+
+  damageEnabled: true,
+  damageUnit: 100,
+  damageRate: 1,
+  damageMaxPoints: 15,
+
+  placementEnabled: true,
+  placementPoints: {
+    1: 20,
+    2: 15,
+    3: 12,
+    4: 10,
+    5: 8,
+    6: 6,
+    7: 4,
+    8: 2
   }
+}
+
+tournament.pointSettings = {
+  ...defaults,
+  ...tournament.pointSettings,
+  placementPoints: {
+    ...defaults.placementPoints,
+    ...tournament.pointSettings.placementPoints
+  }
+}
+
+localStorage.setItem(
+  'tournaments',
+  JSON.stringify(tournaments)
+)
 
   const settings = tournament.pointSettings
 
@@ -318,7 +337,7 @@ function showPointSettings(index) {
         <p>1キルあたりのポイント</p>
         <input type="number" id="kill-rate"
          min="0" value="${settings.killRate}">
-         <p>1人が獲得できるキルポイントの上限</p>
+         <p>チーム全体のキルポイント上限</p>
 <input type="number" id="kill-max-points"
   min="0" value="${settings.killMaxPoints ?? 10}">
       </div>
@@ -336,7 +355,7 @@ function showPointSettings(index) {
         <p>そのときのポイント</p>
         <input type="number" id="damage-rate"
           min="0" value="${settings.damageRate}">
-         <p>1人が獲得できるダメージポイントの上限</p>
+         <p>チーム全体のダメージポイント上限</p>
 <input type="number" id="damage-max-points"
   min="0" value="${settings.damageMaxPoints ?? 15}"> 
       </div>
