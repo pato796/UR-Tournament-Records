@@ -903,15 +903,17 @@ const members = selectedTeam?.members || []
         <div class="panel">
           <h3>👤 選手${i}</h3>
 
-          <label>選手名</label>
-          <input
-  id="player-name-${i}"
-  value="${escapeHTML(members[i - 1] || '')}"
-  required
-  readonly
-  placeholder="選手名"
->
-
+          <label>出場選手</label>
+<select id="player-name-${i}" required>
+  ${members.map((member, index) => `
+    <option
+      value="${escapeHTML(member)}"
+      ${member === members[i - 1] ? 'selected' : ''}
+    >
+      ${escapeHTML(member)}
+    </option>
+  `).join('')}
+</select>
           ${settings.killEnabled ? `
             <label>⚔️ キル数</label>
             <input
@@ -1063,7 +1065,14 @@ renderInputs()
   document.querySelector('#register-form')
     .addEventListener('submit', event => {
       event.preventDefault()
+const selectedNames = [1, 2, 3].map(i =>
+  document.querySelector(`#player-name-${i}`).value
+)
 
+if (new Set(selectedNames).size !== 3) {
+  alert('同じ選手を重複して選択することはできません。')
+  return
+}
       const tournament = tournaments.find(
         t => t.name === tournamentSelect.value
       )
