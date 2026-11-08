@@ -144,40 +144,46 @@ function showTournaments() {
 
   const teamList = document.querySelector('#team-input-list')
 
-  function addTeam() {
-    const index = teamList.children.length
+ 
+function addTeam() {
+  const index = teamList.children.length
 
-    const div = document.createElement('div')
-    div.className = 'panel team-entry'
+  const div = document.createElement('div')
+  div.className = 'panel team-entry'
 
-    div.innerHTML = `
-      <h3>チーム ${index + 1}</h3>
+  div.innerHTML = `
+    <h3>チーム ${index + 1}</h3>
 
-      <p>チーム名</p>
-      <input class="team-name" required placeholder="チーム名">
+    <p>チーム名</p>
+    <input class="team-name" required placeholder="チーム名">
 
-      <p>選手1</p>
-      <input class="member-name" required placeholder="選手名">
+    <p>選手1</p>
+    <input class="member-name" required placeholder="選手名">
 
-      <p>選手2</p>
-      <input class="member-name" required placeholder="選手名">
+    <p>選手2</p>
+    <input class="member-name" required placeholder="選手名">
 
-      <p>選手3</p>
-      <input class="member-name" required placeholder="選手名">
+   <p>選手3</p>
+<input class="member-name" required placeholder="選手名">
 
-      <button type="button" class="remove-team">
-        🗑️ このチームを削除
-      </button>
-    `
+<p>選手4（補欠・任意）</p>
+<input class="member-name" placeholder="補欠の選手名">
 
-    teamList.appendChild(div)
-  }
+<button type="button" class="remove-team">
+      🗑️ このチームを削除
+    </button>
+  `
 
+  teamList.appendChild(div)
+}
+  // 最初のチームを自動で追加
   addTeam()
 
+  // チーム追加ボタン
   document.querySelector('#add-team')
     .addEventListener('click', addTeam)
 
+  // チーム削除ボタン
   teamList.addEventListener('click', event => {
     if (!event.target.classList.contains('remove-team')) return
 
@@ -193,6 +199,7 @@ function showTournaments() {
     })
   })
 
+  // 大会登録
   document.querySelector('#tournament-form')
     .addEventListener('submit', event => {
       event.preventDefault()
@@ -203,7 +210,9 @@ function showTournaments() {
         name: team.querySelector('.team-name').value.trim(),
         members: Array.from(
           team.querySelectorAll('.member-name')
-        ).map(input => input.value.trim())
+        )
+          .map(input => input.value.trim())
+          .filter(Boolean)
       }))
 
       const tournament = {
@@ -211,7 +220,6 @@ function showTournaments() {
         date: document.querySelector('#date').value,
         teams,
         mvpMode: document.querySelector('#mvp-mode').value,
-
         pointSettings: {
           killEnabled: true,
           killRate: 1,
@@ -227,28 +235,27 @@ function showTournaments() {
       }
 
       tournaments.push(tournament)
-
-      localStorage.setItem(
-        'tournaments',
-        JSON.stringify(tournaments)
-      )
-
+      localStorage.setItem('tournaments', JSON.stringify(tournaments))
       showTournaments()
     })
 
+  // ポイント設定ボタン
   document.querySelectorAll('.point-setting-btn')
     .forEach(button => {
       button.addEventListener('click', () => {
         showPointSettings(Number(button.dataset.index))
       })
     })
-document.querySelectorAll('.mvp-btn')
-  .forEach(button => {
-    button.addEventListener('click', () => {
-      const index = Number(button.dataset.index)
-      showMvpSettings(index)
+
+  // MVPボタン
+  document.querySelectorAll('.mvp-btn')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        showMvpSettings(Number(button.dataset.index))
+      })
     })
-  })
+
+  // 大会削除ボタン
   document.querySelectorAll('.delete-btn')
     .forEach(button => {
       button.addEventListener('click', () => {
@@ -257,187 +264,10 @@ document.querySelectorAll('.mvp-btn')
         if (!confirm('この大会を削除しますか？')) return
 
         tournaments.splice(index, 1)
-
-        localStorage.setItem(
-          'tournaments',
-          JSON.stringify(tournaments)
-        )
-
+        localStorage.setItem('tournaments', JSON.stringify(tournaments))
         showTournaments()
       })
     })
-}
-function showMvpSettings(index) {
-  const tournament = tournaments[index]
-  const players = {}
-
-  function getPlayer(name) {
-    if (!players[name]) {
-      players[name] = {
-        points: 0,
-        kills: 0,
-        damage: 0,
-        placementTotal: 0,
-        matchCount: 0
-      }
-    }
-    return players[name]
-  }
-
-  // 個人成績を集計
-  scores
-    .filter(score => score.tournament === tournament.name)
-    .forEach(score => {
-      score.players?.forEach(player => {
-        const name = String(player.name || '').trim()
-        if (!name) return
-
-        const data = getPlayer(name)
-        data.points += Number(player.points) || 0
-        data.kills += Number(player.kills) || 0
-        data.damage += Number(player.damage) || 0
-      })
-    })
-
-  // 試合結果を集計
-  matches
-    .filter(match => match.tournament === tournament.name)
-    .forEach(match => {
-      match.players?.forEach(player => {
-        const name = String(player.name || '').trim()
-        if (!name) return
-
-        const data = getPlayer(name)
-        const result = String(match.result)
-
-        const placementScore = {
-          '1': 100,
-          '2': 75,
-          '3': 50,
-          other: 25
-        }
-
-        data.placementTotal +=
-          placementScore[result] ?? 25
-
-        data.matchCount++
-      })
-    })
-
-  const ranking = Object.entries(players)
-
-  if (ranking.length === 0) {
-    content.innerHTML = `
-      <h2>🏅 MVP決定</h2>
-      <p>まだ選手の成績がありません。</p>
-    `
-    return
-  }
-
-  const mode = tournament.mvpMode || 'points'
-
-  const maxKills = Math.max(...ranking.map(p => p[1].kills))
-  const maxDamage = Math.max(...ranking.map(p => p[1].damage))
-
-  function getCombinedScore(data) {
-    const killScore = maxKills
-      ? data.kills / maxKills * 40
-      : 0
-
-    const damageScore = maxDamage
-      ? data.damage / maxDamage * 30
-      : 0
-
-    const placementAverage = data.matchCount
-      ? data.placementTotal / data.matchCount
-      : 0
-
-    return killScore + damageScore +
-      placementAverage * 0.3
-  }
-
-  const sorted = [...ranking].sort((a, b) => {
-    if (mode === 'combined') {
-      return getCombinedScore(b[1]) - getCombinedScore(a[1])
-    }
-
-    return b[1].points - a[1].points
-  })
-
-  const automaticWinner = sorted[0][0]
-
-  content.innerHTML = `
-    <h2>🏅 ${escapeHTML(tournament.name)} MVP決定</h2>
-
-    <div class="panel">
-      ${
-        tournament.mvpWinner
-          ? `
-            <h3>現在のMVP</h3>
-            <h2>👑 ${escapeHTML(tournament.mvpWinner)}</h2>
-            <p>新しい選手を選んで再確定すると、MVPを変更できるよ。</p>
-          `
-          : '<p>まだMVPは決まっていません。</p>'
-      }
-
-      <h3>決定方式</h3>
-      <p>
-        ${
-          mode === 'points'
-            ? '① 個人ポイント制（自動）'
-            : mode === 'combined'
-              ? '③ 総合評価制（自動）'
-              : '② 手動選択'
-        }
-      </p>
-
-      ${
-        mode === 'manual'
-          ? `
-            <label>MVPに選ぶ選手</label>
-            <select id="mvp-player">
-              ${ranking.map(([name]) => `
-                <option
-                  value="${escapeHTML(name)}"
-                  ${name === tournament.mvpWinner ? 'selected' : ''}
-                >
-                  ${escapeHTML(name)}
-                </option>
-              `).join('')}
-            </select>
-          `
-          : `
-            <h3>🏆 自動選出候補</h3>
-            <h2>👑 ${escapeHTML(automaticWinner)}</h2>
-            <p>この選手をMVPにするよ！</p>
-          `
-      }
-
-      <button id="save-mvp">
-        🏆 ${tournament.mvpWinner ? 'MVPを変更・確定する' : 'MVPを確定する'}
-      </button>
-      <button id="back-tournaments">戻る</button>
-    </div>
-  `
-  document.querySelector('#save-mvp')
-    .addEventListener('click', () => {
-      const winner = mode === 'manual'
-        ? document.querySelector('#mvp-player').value
-        : automaticWinner
-
-      tournament.mvpWinner = winner
-
-      localStorage.setItem(
-        'tournaments',
-        JSON.stringify(tournaments)
-      )
-
-      alert(`${winner} がMVPに決定！`)
-      showTournaments()
-    })
-
-  document.querySelector('#back-tournaments')
-    .addEventListener('click', showTournaments)
 }
 function showPointSettings(index) {
   const tournament = tournaments[index]
@@ -1991,4 +1821,4 @@ document.querySelectorAll('.nav-btn').forEach(button => {
   })
 })
 
-showHome()　　
+showHome()
