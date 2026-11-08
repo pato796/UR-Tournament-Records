@@ -219,22 +219,24 @@ function addTeam() {
         date: document.querySelector('#date').value,
         teams,
         mvpMode: document.querySelector('#mvp-mode').value,
-        pointSettings: {
-          killEnabled: true,
-          killRate: 1,
-          killMaxPoints: 10,
+pointSettings: {
+  killEnabled: true,
+  killUnlimited: false,
+  killRate: 1,
+  killMaxPoints: 10,
 
-          damageEnabled: true,
-          damageUnit: 3000,
-          damageRate: 1,
-          damageMaxPoints: 15,
+  damageEnabled: true,
+  damageUnlimited: false,
+  damageUnit: 3000,
+  damageRate: 1,
+  damageMaxPoints: 15,
 
-          placementEnabled: true,
-          placementPoints: {
-            1: 8, 2: 7, 3: 6, 4: 5,
-            5: 4, 6: 3, 7: 2, 8: 1
-          }
-        }
+  placementEnabled: true,
+  placementPoints: {
+    1: 8, 2: 7, 3: 6, 4: 5,
+    5: 4, 6: 3, 7: 2, 8: 1
+  }
+}
       }
       tournaments.push(tournament)
 
@@ -285,10 +287,12 @@ if (!tournament.pointSettings) {
 
 const defaults = {
   killEnabled: true,
+  killUnlimited: false,
   killRate: 2,
   killMaxPoints: 10,
 
-  damageEnabled: true,
+  damageEnabled: true,  
+  damageUnlimited: false,
   damageUnit: 100,
   damageRate: 1,
   damageMaxPoints: 15,
@@ -339,6 +343,11 @@ localStorage.setItem(
          min="0" value="${settings.killRate}">
          <p>チーム全体のキルポイント上限</p>
 <input type="number" id="kill-max-points"
+<label>
+  <input type="checkbox" id="kill-unlimited"
+    ${settings.killUnlimited ? 'checked' : ''}>
+  キルポイントの上限なし
+</label>
   min="0" value="${settings.killMaxPoints ?? 10}">
       </div>
 
@@ -357,6 +366,11 @@ localStorage.setItem(
           min="0" value="${settings.damageRate}">
          <p>チーム全体のダメージポイント上限</p>
 <input type="number" id="damage-max-points"
+<label>
+  <input type="checkbox" id="damage-unlimited"
+    ${settings.damageUnlimited ? 'checked' : ''}>
+  ダメージポイントの上限なし
+</label>
   min="0" value="${settings.damageMaxPoints ?? 15}"> 
       </div>
 
@@ -410,7 +424,11 @@ localStorage.setItem(
 
       settings.killEnabled =
         document.querySelector('#kill-enabled').checked
-      settings.killRate =
+
+        settings.killUnlimited =
+        document.querySelector('#kill-unlimited').checked
+
+        settings.killRate =
         Number(document.querySelector('#kill-rate').value)
 settings.killMaxPoints =
   Number(document.querySelector('#kill-max-points').value)
@@ -665,27 +683,21 @@ function showEditScore(index) {
     if (hasDetailedStats) {
       points = 0
 
-     if (settings.killEnabled) {
-  const killPoints =
-    kills * Number(settings.killRate || 0)
+  if (settings.killEnabled) {
+  const killPoints = kills * Number(settings.killRate || 0)
 
-  points += Math.min(
-    killPoints,
-    Number(settings.killMaxPoints ?? 10)
-  )
+  points += settings.killUnlimited
+    ? killPoints
+    : Math.min(killPoints, Number(settings.killMaxPoints ?? 10))
 }
 
 if (settings.damageEnabled) {
   const unit = Number(settings.damageUnit) || 1
+  const damagePoints = Math.floor(damage / unit) * Number(settings.damageRate || 0)
 
-  const damagePoints =
-    Math.floor(damage / unit) *
-    Number(settings.damageRate || 0)
-
-  points += Math.min(
-    damagePoints,
-    Number(settings.damageMaxPoints ?? 15)
-  )
+  points += settings.damageUnlimited
+    ? damagePoints
+    : Math.min(damagePoints, Number(settings.damageMaxPoints ?? 15))
 }
 
       if (settings.placementEnabled) {
@@ -865,82 +877,85 @@ const members = selectedTeam?.members || []
     calculatePoints()
   }
 
-  function calculatePoints() {
-    const settings = getSettings()
+function calculatePoints() {
+  const settings = getSettings()
 
-    const players = [1, 2, 3].map(i => {
-      const kills = Number(
-        document.querySelector(`#player-kills-${i}`)?.value || 0
-      )
-
-      const damage = Number(
-        document.querySelector(`#player-damage-${i}`)?.value || 0
-      )
-
-      let points = 0
-
-     if (settings.killEnabled) {
-  const killPoints =
-    kills * Number(settings.killRate || 0)
-
-  points += Math.min(
-    killPoints,
-    Number(settings.killMaxPoints ?? 10)
-  )
-}
-
-if (settings.damageEnabled) {
-  const unit = Number(settings.damageUnit) || 1
-
-  const damagePoints =
-    Math.floor(damage / unit) *
-    Number(settings.damageRate || 0)
-
-  points += Math.min(
-    damagePoints,
-    Number(settings.damageMaxPoints ?? 15)
-  )
-}
-
-      const display = document.querySelector(
-        `#player-points-${i}`
-      )
-
-      if (display) {
-        display.textContent = `${points} pt`
-      }
-
-      return {
-        name: document.querySelector(`#player-name-${i}`).value,
-        kills,
-        damage,
-        points
-      }
-    })
-
-    const placement = Number(
-      document.querySelector('#register-placement')?.value || 0
+  const players = [1, 2, 3].map(i => {
+    const kills = Number(
+      document.querySelector(`#player-kills-${i}`)?.value || 0
+    )
+    const damage = Number(
+      document.querySelector(`#player-damage-${i}`)?.value || 0
     )
 
-    const individualTotal = players.reduce(
-      (sum, player) => sum + player.points,
-      0
-    )
+    let points = 0
 
-    const placementPoints = settings.placementEnabled
-      ? Number(settings.placementPoints?.[placement] || 0)
-      : 0
+    // 個人ポイントは上限なしで計算
+    if (settings.killEnabled) {
+      points += kills * Number(settings.killRate || 0)
+    }
 
-    const teamPoints = individualTotal + placementPoints
+    if (settings.damageEnabled) {
+      const unit = Number(settings.damageUnit) || 1
+      points += Math.floor(damage / unit) *
+        Number(settings.damageRate || 0)
+    }
 
-    totalDisplay.textContent = `${teamPoints} pt`
+    const display = document.querySelector(`#player-points-${i}`)
+    if (display) display.textContent = `${points} pt`
 
     return {
-      players,
-      placement,
-      teamPoints
+      name: document.querySelector(`#player-name-${i}`).value,
+      kills,
+      damage,
+      points
     }
+  })
+
+  // チーム全体のキル・ダメージを集計
+  const totalKills = players.reduce(
+    (sum, player) => sum + player.kills, 0
+  )
+  const totalDamage = players.reduce(
+    (sum, player) => sum + player.damage, 0
+  )
+
+  let teamKillPoints = 0
+  let teamDamagePoints = 0
+
+  if (settings.killEnabled) {
+    const raw = totalKills * Number(settings.killRate || 0)
+
+    teamKillPoints = settings.killUnlimited
+      ? raw
+      : Math.min(raw, Number(settings.killMaxPoints ?? 10))
   }
+
+  if (settings.damageEnabled) {
+    const unit = Number(settings.damageUnit) || 1
+    const raw = Math.floor(totalDamage / unit) *
+      Number(settings.damageRate || 0)
+
+    teamDamagePoints = settings.damageUnlimited
+      ? raw
+      : Math.min(raw, Number(settings.damageMaxPoints ?? 15))
+  }
+
+  const placement = Number(
+    document.querySelector('#register-placement')?.value || 0
+  )
+
+  const placementPoints = settings.placementEnabled
+    ? Number(settings.placementPoints?.[placement] || 0)
+    : 0
+
+  const teamPoints =
+    teamKillPoints + teamDamagePoints + placementPoints
+
+  totalDisplay.textContent = `${teamPoints} pt`
+
+  return { players, placement, teamPoints }
+}
 
   tournamentSelect.addEventListener('change', () => {
   renderTeamOptions()
