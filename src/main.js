@@ -473,6 +473,7 @@ tournament.mvpMode =
       showTournaments()
     })
 }
+
 function showRanking() {
   if (tournaments.length === 0) {
     content.innerHTML = `
@@ -504,91 +505,58 @@ function showRanking() {
   const select = document.querySelector('#score-tournament')
   const list = document.querySelector('#ranking-list')
 
+  function renderRanking() {
+    const tournamentName = select.value
 
-function renderRanking() {
-  const key = select.value
+    const tournamentScores = scores.filter(
+      score => score.tournament === tournamentName
+    )
 
-  const labels = {
-    points: 'pt',
-    kills: 'キル',
-    damage: 'ダメージ'
-  }
+    const teams = {}
 
-  const ranking = Object.entries(players)
-    .sort((a, b) => b[1][key] - a[1][key])
+    tournamentScores.forEach(score => {
+      const team = String(score.team || '').trim()
+      if (!team) return
 
-  list.innerHTML = ranking.length === 0
-    ? '<p>まだ個人成績が登録されていません。</p>'
-    : ranking.map(([name, data], index) => `
-        <div class="panel">
-          <h3>${index + 1}位　${escapeHTML(name)}</h3>
+      if (!teams[team]) {
+        teams[team] = {
+          points: 0,
+          kills: 0,
+          damage: 0,
+          matches: 0
+        }
+      }
 
-          <h2>${data[key]} ${labels[key]}</h2>
+      teams[team].points += Number(score.points) || 0
+      teams[team].kills += Number(score.kills) || 0
+      teams[team].damage += Number(score.damage) || 0
+      teams[team].matches++
+    })
 
-          <p>🏆 合計ポイント：${data.points} pt</p>
-          <p>⚔️ 合計キル：${data.kills}</p>
-          <p>💥 合計ダメージ：${data.damage}</p>
-          <p>🎟️ 大会参加数：${data.tournaments.size}</p>
-          <p>🎮 試合数：${data.matches}</p>
-          <p>🥇 1位回数：${data.wins}</p>
-          <p>🏅 MVP獲得回数：${data.mvpWins}回</p>
+    const ranking = Object.entries(teams)
+      .sort((a, b) => b[1].points - a[1].points)
 
-          <button class="player-profile-btn"
-            data-index="${index}">
-            👤 プロフィールを見る
-          </button>
-        </div>
-      `).join('')
-
-  document.querySelectorAll('.player-profile-btn')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        const [name, data] = ranking[Number(button.dataset.index)]
-
-        const winRate = data.matches
-          ? (data.wins / data.matches * 100).toFixed(1)
-          : '0.0'
-
-        const characterList = Object.entries(data.characters)
-          .sort((a, b) => b[1] - a[1])
-          .map(([character, uses]) =>
-            `<p>${escapeHTML(character)}：${uses}回</p>`
-          ).join('') || '<p>まだ記録がありません。</p>'
-
-        list.innerHTML = `
+    list.innerHTML = ranking.length === 0
+      ? '<p>この大会にはまだポイントが登録されていません。</p>'
+      : ranking.map(([team, data], index) => `
           <div class="panel">
-            <h2>👤 ${escapeHTML(name)} のプロフィール</h2>
+            <h3>
+              ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}位`}
+              ${escapeHTML(team)}
+            </h3>
 
-            <h3>📊 総合成績</h3>
-            <p>🏆 合計ポイント：${data.points} pt</p>
+            <h2>${data.points} pt</h2>
             <p>⚔️ 合計キル：${data.kills}</p>
             <p>💥 合計ダメージ：${data.damage}</p>
-
-            <h3>🎮 試合成績</h3>
-            <p>試合数：${data.matches}回</p>
-            <p>🥇 1位回数：${data.wins}回</p>
-            <p>📊 勝率：${winRate}%</p>
-            <p>🎟️ 大会参加数：${data.tournaments.size}</p>
-            <p>🏅 MVP獲得回数：${data.mvpWins}回</p>
-
-            <h3>🎭 使用キャラクター</h3>
-            ${characterList}
-
-            <button id="back-to-ranking">
-              ← 個人成績に戻る
-            </button>
+            <p>🎮 試合数：${data.matches}回</p>
           </div>
-        `
-
-        document.querySelector('#back-to-ranking')
-          .addEventListener('click', renderRanking)
-      })
-    })
-}
+        `).join('')
+  }
 
   select.addEventListener('change', renderRanking)
   renderRanking()
 }
+
 function showEditScore(index) {
   const score = scores[index]
 
