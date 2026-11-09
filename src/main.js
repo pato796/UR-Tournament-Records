@@ -739,7 +739,7 @@ function showEditScore(index) {
       showRanking()
     })
 }
-function showRegister() {
+function showRegister(keepTournament = '', keepTeam = '', keepMatchNo = 1) {
   if (tournaments.length === 0) {
     content.innerHTML = `
       <h2>ポイント登録</h2>
@@ -775,7 +775,7 @@ function showRegister() {
   type="number"
   id="register-match-no"
   min="1"
-  value="1"
+ value="${Number(keepMatchNo) || 1}"
   required
 >
 
@@ -794,7 +794,7 @@ function showRegister() {
   const tournamentSelect =
     document.querySelector('#register-tournament')
     const teamSelect = document.querySelector('#register-team')
- function renderTeamOptions() {
+function renderTeamOptions(preferredTeam = '') {
   const tournament = tournaments.find(
     t => t.name === tournamentSelect.value
   )
@@ -808,6 +808,9 @@ function showRegister() {
         </option>
       `).join('')
     : '<option value="">チーム未登録</option>'
+    if (preferredTeam && teams.some(team => team.name === preferredTeam)) {
+  teamSelect.value = preferredTeam
+}
 }
     const statInputs =
     document.querySelector('#stat-inputs')
@@ -1024,7 +1027,7 @@ teamDamagePoints = matchDamageUnlimited
 
 teamSelect.addEventListener('change', renderInputs)
 
-renderTeamOptions()
+renderTeamOptions(keepTeam)
 renderInputs()
 
   renderInputs()
@@ -1056,7 +1059,7 @@ if (new Set(selectedNames).size !== 3) {
 
 scores.push({
   tournament: tournament.name,
-  team: document.querySelector('#register-team').value,
+  team: teamSelect.value,
 
   matchNo: Number(
     document.querySelector('#register-match-no').value || 1
@@ -1078,11 +1081,16 @@ scores.push({
   placement: result.placement,
   players: result.players
 })
-   
 
-      localStorage.setItem('scores', JSON.stringify(scores))
+localStorage.setItem('scores', JSON.stringify(scores))
 
-      showRegister()
+showRegister(
+  tournamentSelect.value,
+  teamSelect.value,
+  Number(document.querySelector('#register-match-no').value || 1)
+)
+
+ 
     })
 }
 
@@ -1276,12 +1284,12 @@ function showIndividualRanking() {
   select.addEventListener('change', renderRanking)
   renderRanking()
 }
-function showMatchRegister() {
-  const tournamentOptions = tournaments.map(t => `
-    <option value="${escapeHTML(t.name)}">
-      ${escapeHTML(t.name)}
-    </option>
-  `).join('')
+function showMatchRegister(keepTournament = '', keepTeam = '', keepMatchNo = 1) {
+const tournamentOptions = tournaments.map(t => `
+  <option value="${escapeHTML(t.name)}" ${t.name === keepTournament ? 'selected' : ''}>
+    ${escapeHTML(t.name)}
+  </option>
+`).join('')
 
   content.innerHTML = `
     <h2>🎮 試合記録</h2>
@@ -1299,7 +1307,7 @@ function showMatchRegister() {
       </select>
 
       <h3>🎮 試合番号</h3>
-      <input type="number" id="match-no" min="1" value="1">
+      <input type="number" id="match-no" min="1" value="${Number(keepMatchNo) || 1}">
     </div>
 
     <div id="match-players"></div>
@@ -1392,6 +1400,19 @@ function showMatchRegister() {
       </div>
     `
   })
+  // 保存前に選んでいた大会・チームを復元
+if (keepTournament) {
+  tournamentSelect.value = keepTournament
+  tournamentSelect.dispatchEvent(new Event('change'))
+}
+
+if (
+  keepTeam &&
+  [...teamSelect.options].some(option => option.value === keepTeam)
+) {
+  teamSelect.value = keepTeam
+  teamSelect.dispatchEvent(new Event('change'))
+}
 
   document.querySelector('#save-match')
     .addEventListener('click', () => {
@@ -1456,9 +1477,9 @@ function showMatchRegister() {
       })
 
       saveMatches()
-
+      
       alert('試合記録を保存しました！')
-      showMatchRegister()
+showMatchRegister(tournament, team, matchNo)
     })
 }
 function showCharacterStats(selectedTournament = 'all') {
