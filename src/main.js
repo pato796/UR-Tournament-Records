@@ -556,7 +556,6 @@ function showRanking() {
   select.addEventListener('change', renderRanking)
   renderRanking()
 }
-
 function showEditScore(index) {
   const score = scores[index]
 
@@ -1298,6 +1297,9 @@ function showMatchRegister() {
       <select id="match-team" disabled>
         <option value="">先に大会を選択</option>
       </select>
+
+      <h3>🎮 試合番号</h3>
+      <input type="number" id="match-no" min="1" value="1">
     </div>
 
     <div id="match-players"></div>
@@ -1349,23 +1351,32 @@ function showMatchRegister() {
       t => t.name === teamSelect.value
     )
 
-    const members = (team?.members || []).map(member =>
-      typeof member === 'string' ? member : member.name
-    )
+    const members = (team?.members || [])
+      .map(member =>
+        typeof member === 'string' ? member : member.name
+      )
+      .filter(Boolean)
+
+    const playerOptions = `
+      <option value="">出場選手を選択</option>
+      ${members.map(member => `
+        <option value="${escapeHTML(member)}">
+          ${escapeHTML(member)}
+        </option>
+      `).join('')}
+    `
 
     playersArea.innerHTML = `
       <div class="panel">
-        <h3>👤 選手・キャラクター</h3>
+        <h3>👤 出場選手・キャラクター</h3>
 
         ${[0, 1, 2].map(index => `
           <div class="card">
             <h3>${index + 1}人目</h3>
 
-            <input
-              class="match-player-name"
-              value="${escapeHTML(members[index] || '')}"
-              placeholder="選手名"
-            >
+            <select class="match-player-name">
+              ${playerOptions}
+            </select>
 
             <select class="match-character">
               <option value="">キャラクターを選択</option>
@@ -1387,9 +1398,17 @@ function showMatchRegister() {
       const tournament = tournamentSelect.value
       const team = teamSelect.value
       const result = document.querySelector('#match-result').value
+      const matchNo = Number(
+        document.querySelector('#match-no').value
+      )
 
       if (!tournament || !team) {
         alert('大会とチームを選択してください。')
+        return
+      }
+
+      if (!Number.isInteger(matchNo) || matchNo < 1) {
+        alert('1以上の試合番号を入力してください。')
         return
       }
 
@@ -1401,25 +1420,36 @@ function showMatchRegister() {
         ...document.querySelectorAll('.match-character')
       ]
 
+      const selectedNames = names.map(input => input.value)
+
+      if (
+        selectedNames.some(name => !name) ||
+        new Set(selectedNames).size !== 3
+      ) {
+        alert('異なる選手を3人選択してください。')
+        return
+      }
+
       const players = names.map((input, index) => {
         const characterIndex = characterSelects[index].value
         const character = characters[Number(characterIndex)]
 
         return {
-          name: input.value.trim(),
+          name: input.value,
           character: character?.name || '',
           style: character?.style || '通常スタイル'
         }
       })
 
-      if (players.some(player => !player.name || !player.character)) {
-        alert('3人全員の選手名とキャラクターを入力してください。')
+      if (players.some(player => !player.character)) {
+        alert('3人全員のキャラクターを選択してください。')
         return
       }
 
       matches.push({
         tournament,
         team,
+        matchNo,
         result,
         players,
         date: new Date().toISOString()
