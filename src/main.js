@@ -1500,44 +1500,47 @@ document.querySelector('#match-no').value =
 showMatchRegister(tournament, team, matchNo)
     })
 }
-function showCharacterStats(selectedTournament = 'all') {
+
+function showCharacterStats(selectedTournament = 'all', sortMode = 'uses') {
   const stats = {}
 
-const filteredMatches = selectedTournament === 'all'
-  ? matches
-  : matches.filter(match => match.tournament === selectedTournament)
+  const filteredMatches = selectedTournament === 'all'
+    ? matches
+    : matches.filter(match => match.tournament === selectedTournament)
 
-filteredMatches.forEach(match => {
-    match.players.forEach(player => {
+  filteredMatches.forEach(match => {
+    ;(match.players || []).forEach(player => {
       const character = characters.find(
         c => c.name === player.character
       )
 
-     const style = player.style || character?.style || '通常スタイル'
+      const style = player.style || character?.style || '通常スタイル'
       const key = `${player.character}_${style}`
 
-  if (!stats[key]) {
-  stats[key] = {
-    name: player.character,
-    style,
-    uses: 0,
-    wins: 0,
-    placements: {
-      '1': 0,
-      '2': 0,
-      '3': 0,
-      other: 0
-    }
-  }
-}
+      if (!stats[key]) {
+        stats[key] = {
+          name: player.character,
+          style,
+          uses: 0,
+          wins: 0,
+          placements: {
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            other: 0
+          }
+        }
+      }
 
       stats[key].uses++
-const result = ['1', '2', '3'].includes(String(match.result))
-  ? String(match.result)
-  : 'other'
 
-stats[key].placements[result]++
-       if (match.result === '1') {
+      const result = ['1', '2', '3'].includes(String(match.result))
+        ? String(match.result)
+        : 'other'
+
+      stats[key].placements[result]++
+
+      if (String(match.result) === '1') {
         stats[key].wins++
       }
     })
@@ -1547,45 +1550,65 @@ stats[key].placements[result]++
     .map(item => ({
       ...item,
       winRate: item.uses
-        ? (item.wins / item.uses * 100).toFixed(1)
+        ? Number((item.wins / item.uses * 100).toFixed(1))
         : 0
     }))
-    .sort((a, b) => b.uses - a.uses)
+    .sort((a, b) => {
+      if (sortMode === 'winRate') {
+        return b.winRate - a.winRate || b.uses - a.uses
+      }
+
+      return b.uses - a.uses || b.winRate - a.winRate
+    })
 
   content.innerHTML = `
-    
     <h2>📊 キャラ分析</h2>
-   <div class="panel">
-  <h3>🏆 大会を選択</h3>
- <select id="character-tournament">
-  <option value="all" ${selectedTournament === 'all' ? 'selected' : ''}>
-    すべての大会
-  </option>
 
-  ${tournaments.map(t => `
-    <option
-      value="${escapeHTML(t.name)}"
-      ${selectedTournament === t.name ? 'selected' : ''}
-    >
-      ${escapeHTML(t.name)}
-    </option>
-  `).join('')}
-</select>
-</div>
-<div class="panel">
-  <h3>👤 キャラクターを選択</h3>
-  <select id="character-select">
- <option value="" disabled selected>キャラクターを選択</option>
-    ${ranking.map(item => `
-      <option value="${escapeHTML(item.name + '_' + item.style)}">
-        ${escapeHTML(item.name)}（${escapeHTML(item.style)}）
-      </option>
-    `).join('')}
-  </select>
-</div>
+    <div class="panel">
+      <h3>🏆 大会を選択</h3>
+      <select id="character-tournament">
+        <option value="all" ${selectedTournament === 'all' ? 'selected' : ''}>
+          すべての大会
+        </option>
 
-<div id="character-chart"></div>
-    <h3>使用回数ランキング</h3>
+        ${tournaments.map(t => `
+          <option
+            value="${escapeHTML(t.name)}"
+            ${selectedTournament === t.name ? 'selected' : ''}
+          >
+            ${escapeHTML(t.name)}
+          </option>
+        `).join('')}
+      </select>
+    </div>
+
+    <div class="panel">
+      <h3>📊 並び替え</h3>
+      <select id="character-sort">
+        <option value="uses" ${sortMode === 'uses' ? 'selected' : ''}>
+          使用回数が多い順
+        </option>
+        <option value="winRate" ${sortMode === 'winRate' ? 'selected' : ''}>
+          勝率が高い順
+        </option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <h3>👤 キャラクターを選択</h3>
+      <select id="character-select">
+        <option value="" selected>キャラクターを選択</option>
+        ${ranking.map(item => `
+          <option value="${escapeHTML(item.name + '_' + item.style)}">
+            ${escapeHTML(item.name)}（${escapeHTML(item.style)}）
+          </option>
+        `).join('')}
+      </select>
+    </div>
+
+    <div id="character-chart"></div>
+
+    <h3>${sortMode === 'uses' ? '使用回数ランキング' : '勝率ランキング'}</h3>
 
     ${
       ranking.length === 0
@@ -1604,9 +1627,14 @@ stats[key].placements[result]++
 
   document.querySelector('#character-tournament')
     .addEventListener('change', event => {
-      showCharacterStats(event.target.value)
+      showCharacterStats(event.target.value, sortMode)
     })
-  document.querySelector('#character-select')
+
+  document.querySelector('#character-sort')
+    .addEventListener('change', event => {
+      showCharacterStats(selectedTournament, event.target.value)
+    })
+
   document.querySelector('#character-select')
     .addEventListener('change', event => {
       const selectedKey = event.target.value
@@ -1662,6 +1690,7 @@ stats[key].placements[result]++
       `
     })
 }
+
 function showCharacterManager() {
   content.innerHTML = `
     <h2>👤 キャラクター管理</h2>
