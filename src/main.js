@@ -1401,18 +1401,36 @@ const tournamentOptions = tournaments.map(t => `
     `
   })
   // 保存前に選んでいた大会・チームを復元
+// 大会・チーム・試合番号を復元
 if (keepTournament) {
   tournamentSelect.value = keepTournament
-  tournamentSelect.dispatchEvent(new Event('change'))
+
+  const tournament = tournaments.find(
+    t => t.name === keepTournament
+  )
+
+  teamSelect.innerHTML = `
+    <option value="">チームを選択</option>
+    ${(tournament?.teams || []).map(team => `
+      <option value="${escapeHTML(team.name)}">
+        ${escapeHTML(team.name)}
+      </option>
+    `).join('')}
+  `
+
+  teamSelect.disabled = !tournament
 }
 
-if (
-  keepTeam &&
-  [...teamSelect.options].some(option => option.value === keepTeam)
-) {
+if (keepTeam) {
   teamSelect.value = keepTeam
-  teamSelect.dispatchEvent(new Event('change'))
+
+  if (teamSelect.value === keepTeam) {
+    teamSelect.dispatchEvent(new Event('change'))
+  }
 }
+
+document.querySelector('#match-no').value =
+  Number(keepMatchNo) || 1
 
   document.querySelector('#save-match')
     .addEventListener('click', () => {
@@ -1477,7 +1495,7 @@ if (
       })
 
       saveMatches()
-      
+
       alert('試合記録を保存しました！')
 showMatchRegister(tournament, team, matchNo)
     })
@@ -1945,7 +1963,162 @@ function saveCharacters() {
     JSON.stringify(characters)
   )
 }
-function showPage(page) {
+
+function showMvpSettings(index) {
+  const tournament = tournaments[index]
+  if (!tournament) return
+
+  const playerStats = {}
+
+  // ポイント登録から個人成績を集計
+  scores
+    .filter(score => score.tournament === tournament.name)
+    .forEach(score => {
+      ;(score.players || []).forEach(player => {
+        const name = String(player.name || '').trim()
+        if (!name) return
+
+        if (!playerStats[name]) {
+          playerStats[name] = {
+            points: 0,
+            kills: 0,
+            damage: 0
+          }
+        }
+
+        playerStats[name].points += Number(player.points) || 0
+        playerStats[name].kills += Number(player.kills) || 0
+        playerStats[name].damage += Number(player.damage) || 0
+      })
+    })
+
+  // 試合記録からも選手を追加
+  matches
+    .filter(match => match.tournament === tournament.name)
+    .forEach(match => {
+      ;(match.players || []).forEach(player => {
+        const name = String(player.name || '').trim()
+        if (!name) return
+
+        if (!playerStats[name]) {
+          playerStats[name] = {
+            points: 0,
+            kills: 0,
+            damage: 0
+          }
+        }
+      })
+    })
+
+  const players = Object.entries(playerStats)
+    .sort((a, b) =>
+      b[1].points - a[1].points ||
+      b[1].kills - a[1].kills ||
+      b[1].damage - a[1].damage
+    )
+
+  const mode = tournament.mvpMode || 'points'
+
+  let winner = tournament.mvpWinner || ''
+
+  if (mode === 'points' || mode === 'combined') {
+    winner = players[0]?.[0] || ''
+  }
+
+  content.innerHTML = `
+    <h2>🏅 ${escapeHTML(tournament.name)} MVP設定</h2>
+
+    <div class="panel">
+      <h3>現在のMVP決定方法</h3>
+      <p>
+        ${
+          mode === 'manual'
+            ? '手動で選択'
+            : mode === 'combined'
+              ? '総合評価制（ポイント・キル・ダメージの順）'
+              : '個人ポイント制'
+        }
+      </p>
+    </div>
+
+    <div class="panel">
+      <h3>🏆 MVP候補</h3>
+
+      ${
+        players.length === 0
+          ? '<p>まだ個人成績がありません。先にポイント登録をしてください。</p>'
+          : players.map(([name, data], i) => `
+            <div class="card">
+              <strong>${i + 1}位：${escapeHTML(name)}</strong>
+              <p>ポイント：${data.points} pt</p>
+              <p>キル：${data.kills}</p>
+              <p>ダメージ：${data.damage}</p>
+            </div>
+          `).join('')
+      }
+    </div>
+
+    ${
+      mode === 'manual'
+        ? `
+          <div class="panel">
+            <h3>👑 MVPを選択</h3>
+            <select id="mvp-player">
+              <option value="">選手を選択</option>
+              ${players.map(([name]) => `
+                <option value="${escapeHTML(name)}"
+                  ${winner === name ? 'selected' : ''}>
+                  ${escapeHTML(name)}
+                </option>
+              `).join('')}
+            </select>
+
+            <button id="save-mvp">MVPを決定する</button>
+          </div>
+        `
+        : `
+          <div class="panel">
+            <h3>👑 自動選出されたMVP</h3>
+            <h2>${winner ? escapeHTML(winner) : '候補者なし'}</h2>
+            <button id="save-mvp" ${winner ? '' : 'disabled'}>
+              MVPを決定する
+            </button>
+          </div>
+        `
+    }
+
+    <button id="back-mvp">大会一覧に戻る</button>
+  `
+
+  document.querySelector('#save-mvp')
+    ?.addEventListener('click', () => {
+      const selected = mode === 'manual'
+        ? document.querySelector('#mvp-player').value
+        : winner
+
+      if (!selected) {
+        alert('MVPを選択してください。')
+        return
+      }
+
+      tournament.mvpWinner = selected
+
+      localStorage.setItem(
+        'tournaments',
+        JSON.stringify(tournaments)
+      )
+
+      alert(`${selected} さんがMVPに決定しました！`)
+      showTournaments()
+    })
+
+  document.querySelector('#back-mvp')
+    .addEventListener('click', () => {
+      showTournaments()
+    })
+}
+
+  function showPage(page) {
   if (page === 'home') showHome()
   if (page === 'tournament') showTournaments()
   if (page === 'register') showRegister()
